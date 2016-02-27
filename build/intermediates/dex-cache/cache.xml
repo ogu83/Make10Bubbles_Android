@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<items version="2" >
+
+    <item
+        jar="/Users/oguzkoroglu/Projects/Make10Bubbles/Android/trunk/app/build/intermediates/exploded-aar/com.android.support/support-v4/21.0.2/jars/classes.jar"
+        jumboMode="false"
+        revision="21.1.0"
+        sha1="d1bf02de1c56d942e7a9d093b8610ba1ef4128e3">
+        <dex dex="/Users/oguzkoroglu/Projects/Make10Bubbles/Android/trunk/app/build/intermediates/pre-dexed/debug/classes-87ad9c9a94efdfed67988f567bd848d70fe56cda.jar" />
+    </item>
+    <item
+        jar="/Users/oguzkoroglu/Projects/Make10Bubbles/Android/trunk/app/build/intermediates/exploded-aar/trunk/andEnginePhysicsBox2DExtension/unspecified/jars/classes.jar"
+        jumboMode="false"
+        revision="21.1.0"
+        sha1="e350fdde8d005f1cf4105fb76de0edf6fe51bd9f">
+        <dex dex="/Users/oguzkoroglu/Projects/Make10Bubbles/Android/trunk/app/build/intermediates/pre-dexed/debug/classes-f4bfaa48a46a57552c87007f6a57f8947544c246.jar" />
+    </item>
+    <item
+        jar="/Users/oguzkoroglu/.gradle/caches/modules-2/files-2.1/org.jbundle.util.osgi.wrapped/org.jbundle.util.osgi.wrapped.org.apache.http.client/4.1.2/98c86e42679fe7ac066f6c242e0d14f0bce0bb7c/org.jbundle.util.osgi.wrapped.org.apache.http.client-4.1.2.jar"
+        jumboMode="false"
+        revision="21.1.0"
+        sha1="98c86e42679fe7ac066f6c242e0d14f0bce0bb7c">
+        <dex dex="/Users/oguzkoroglu/Projects/Make10Bubbles/Android/trunk/app/build/intermediates/pre-dexed/debug/org.jbundle.util.osgi.wrapped.org.apache.http.client-4.1.2-42ff90a0f94cd2aac3b04d741bd21bd97419c882.jar" />
+    </item>
+    <item
+        jar="/Users/oguzkoroglu/Projects/Make10Bubbles/Android/trunk/app/build/intermediates/exploded-aar/com.android.support/appcompat-v7/21.0.2/jars/classes.jar"
+        jumboMode="false"
+        revision="21.1.0"
+        sha1="7ae2d38807a43b2f2185ff4089a92c790b579e54">
+        <dex dex="/Users/oguzkoroglu/Projects/Make10Bubbles/Android/trunk/app/build/intermediates/pre-dexed/debug/classes-a38265f49995a70d4bfda23b35f05b636ec2306c.jar" />
+    </item>
+    <item
+        jar="/Users/oguzkoroglu/Projects/Make10Bubbles/Android/trunk/app/build/intermediates/exploded-aar/trunk/andEngine/unspecified/jars/classes.jar"
+        jumboMode="false"
+        revision="21.1.0"
+        sha1="58c48922fee2fd919ef7eed31b6238ca083afd98">
+        <dex dex="/Users/oguzkoroglu/Projects/Make10Bubbles/Android/trunk/app/build/intermediates/pre-dexed/debug/classes-4c00878a5ea560652bbfc0b54413cf0c3c047fd4.jar" />
+    </item>
+    <item
+        jar="/Users/oguzkoroglu/Library/Android/sdk/extras/android/m2repository/com/android/support/support-annotations/21.0.2/support-annotations-21.0.2.jar"
+        jumboMode="false"
+        revision="21.1.0"
+        sha1="99373741f99a0556ee293c41e8faa1ca3ae8a4e6">
+        <dex dex="/Users/oguzkoroglu/Projects/Make10Bubbles/Android/trunk/app/build/intermediates/pre-dexed/debug/support-annotations-21.0.2-bdbd3a5e2ef4f717f7a3d8a726462e87ac2df783.jar" />
+    </item>
+    <item
+        jar="/Users/oguzkoroglu/Projects/Make10Bubbles/Android/trunk/app/build/intermediates/exploded-aar/com.android.support/support-v4/21.0.2/jars/libs/internal_impl-21.0.2.jar"
+        jumboMode="false"
+        revision="21.1.0"
+        sha1="962e8b12569c56dbdcf8367eb4eac8bb129cd18f">
+        <dex dex="/Users/oguzkoroglu/Projects/Make10Bubbles/Android/trunk/app/build/intermediates/pre-dexed/debug/internal_impl-21.0.2-82ab2b80189ebb56322f1e6c8137a56997d1e664.jar" />
+    </item>
+
+</items>
