@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<texture file="texturepackerexample.pvr.ccz" height="32" magfilter="linear" minfilter="linear" pixelformat="RGBA_4444" premultiplyalpha="false" type="pvrccz" version="1" width="227" wraps="clamp" wrapt="clamp">
+    <!-- Created with TexturePacker http://texturepacker.com -->
+    <!-- $TexturePacker:SmartUpdate:c7fde2bcfc878112620c417ecfd0e44e$ -->
+    <textureregion height="32" id="0" rotated="false" src="face_box.png" srcheight="32" srcwidth="32" srcx="0" srcy="0" trimmed="false" width="32" x="195" y="0"/>
+    <textureregion height="32" id="1" rotated="false" src="face_circle_tiled.png" srcheight="32" srcwidth="64" srcx="0" srcy="0" trimmed="false" width="64" x="130" y="0"/>
+    <textureregion height="32" id="2" rotated="false" src="face_hexagon_tiled.png" srcheight="32" srcwidth="64" srcx="0" srcy="0" trimmed="false" width="64" x="65" y="0"/>
+    <textureregion height="32" id="3" rotated="false" src="face_triangle_tiled.png" srcheight="32" srcwidth="64" srcx="0" srcy="0" trimmed="false" width="64" x="0" y="0"/>
+</texture>
