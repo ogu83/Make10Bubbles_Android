@@ -31,6 +31,7 @@ public class NumberBubble extends AnimatedSprite {
         setWidth(radius);
         setHeight(radius);
         setZIndex(1);
+        Debug.d(String.format("Bubble added to scene, no: %d, radius: %s", no, radius));
     }
 
     @Override
@@ -39,6 +40,7 @@ public class NumberBubble extends AnimatedSprite {
             if (!MainActivity.Instance.gamePaused && !MainActivity.Instance.gameOver) {
                 SetSelected(!IsSelected);
                 MainActivity.Instance.ExplodeBubbles();
+                MainActivity.Instance.hintCountDown = MainActivity.Instance.nextLevelScore / 20;
                 setHint(false);
                 playClickSound();
             }
@@ -49,12 +51,13 @@ public class NumberBubble extends AnimatedSprite {
     }
 
     public void SetSelected(boolean isSelected) {
-        //Debug.d(String.format("No : %d Bubble Selected : %s", No, isSelected));
+        Debug.d(String.format("Bubble No:%d Selected : %s", No, isSelected));
         IsSelected = isSelected;
         setCurrentTileIndex(isSelected ? 1 : 0);
     }
 
     public void ShrinkAction() {
+        Debug.d(String.format("Bubble Exploding No: %d Radius: %s", No, Radius));
         final NumberBubble my = this;
         ScaleModifier modifier = new ScaleModifier(0.25f, 1f, 0.1f) {
             @Override
@@ -105,15 +108,23 @@ public class NumberBubble extends AnimatedSprite {
     }
 
     public void playWarnSound() {
+        Debug.d("Playing Warn Sound");
         //TODO:Play warn sound
     }
 
     public void playWhoopSound() {
+        Debug.d("Playing Whoop Sound");
         //TODO:Play whoop sound
     }
 
     public void playClickSound() {
+        Debug.d("Playing Click Sound");
         //TODO:Play Click Sound
+    }
+
+    public void playHitSound() {
+        Debug.d("Playing Hit Sound");
+        //TODO:Play Hit Sound
     }
 
     public int No;

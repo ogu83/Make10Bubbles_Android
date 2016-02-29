@@ -454,6 +454,7 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
                 bubble.setIgnoreUpdate(true);
                 mScene.detachChild(bubble);
                 mPhysicsWorld.destroyBody(bubble.Body);
+                Debug.d(String.format("Bubble removed no: %d", bubble.No));
                 bubble.dispose();
             }
         });
@@ -521,9 +522,12 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
         gameOver = true;
         createBackgroundEndMusic();
         SendHighScoreToServerAlert();
+
+        Debug.d("Game Over");
     }
 
     private void checkHint() {
+        Debug.d(String.format("Check Hint Count Down: %d", hintCountDown));
         hintCountDown--;
         hintCountDown = Math.max(0, hintCountDown);
         if (hintCountDown < 1)
@@ -531,6 +535,7 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
 
     }
     private void giveHint() {
+        Debug.d(String.format("Looking for hint"));
         int makeWhat = 10;
         for (NumberBubble b: Bubbles) {
             for (NumberBubble bb: Bubbles) {
@@ -584,6 +589,8 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
         onScoreAction = false;
         hintsEnabled = true;
         hintCountDown = 5;
+
+        Debug.d("Game started");
     }
 
     private void removeOutOfScreenBubbles()
@@ -601,6 +608,8 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
         if (dI.size()<1)
             return;
 
+        Debug.d(String.format("Out of screen bubbles detected count : %d", dI.size()));
+
         Bubbles.removeAll(dI);
         for (NumberBubble b : dI) {
             b.setIgnoreUpdate(true);
@@ -615,6 +624,8 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
         mScene.detachChild(ground);
         mScene.detachChild(left);
         mScene.detachChild(right);
+
+        Debug.d("Bucket Removed");
     }
 
     private void removeMenu()
@@ -623,6 +634,9 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
         mScene.detachChild(infoButton);
         mScene.detachChild(highScoreButton);
         mScene.detachChild(reviewButton);
+
+        Debug.d("Menu removed");
+
         /*
         final FadeOutModifier m1 = new FadeOutModifier(0.3f) {
             @Override
@@ -754,7 +768,7 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
                 yMargin+menuBtnH/2/2-menuBtnH/2,
                 MenuButton.ExitButtonTextureRegion,
                 getVertexBufferObjectManager());
-        exitButton.setSize(menuBtnW/2, menuBtnH/2);
+        exitButton.setSize(menuBtnW / 2, menuBtnH / 2);
         exitButton.setZIndex(9);
         mScene.attachChild(exitButton);
 
@@ -764,6 +778,8 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
         infoButton.setAlpha(0);
         highScoreButton.setAlpha(0);
         reviewButton.setAlpha(0);
+
+        Debug.d("Create menu started");
 
         FadeInModifier m1 = new FadeInModifier(1) {
             @Override
@@ -781,6 +797,7 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
                                     @Override
                                     protected void onModifierFinished(IEntity pItem) {
                                         super.onModifierFinished(pItem);
+                                        Debug.d("Menu Create finished");
                                     }
                                 };
                                 reviewButton.registerEntityModifier(m1);
@@ -803,6 +820,7 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
         background.setSize(frameW,frameH);
         background.setZIndex(-1);
         mScene.attachChild(background);
+        Debug.d("Background created");
     }
 
     private void createSoundButton(boolean isSoundOn){
