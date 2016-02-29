@@ -36,10 +36,12 @@ public class NumberBubble extends AnimatedSprite {
     @Override
     public boolean onAreaTouched(TouchEvent pSceneTouchEvent, float pTouchAreaLocalX, float pTouchAreaLocalY) {
         if (pSceneTouchEvent.isActionDown()) {
-            SetSelected(!IsSelected);
-            MainActivity.Instance.ExplodeBubbles();
-            setHint(false);
-            playClickSound();
+            if (!MainActivity.Instance.gamePaused && !MainActivity.Instance.gameOver) {
+                SetSelected(!IsSelected);
+                MainActivity.Instance.ExplodeBubbles();
+                setHint(false);
+                playClickSound();
+            }
             return true;
         }
         else
@@ -69,8 +71,8 @@ public class NumberBubble extends AnimatedSprite {
 
     public void setHint(boolean on) {
         if (on) {
-            RotationModifier r1 = new RotationModifier(0.1f,0,2);
-            registerEntityModifier(r1);
+            //RotationModifier r1 = new RotationModifier(0.1f,0,180);
+            //registerEntityModifier(r1);
             ScaleModifier m1 = new ScaleModifier(0.1f, 1f, 110f/100f) {
                 @Override
                 protected void onModifierFinished(IEntity pItem) {

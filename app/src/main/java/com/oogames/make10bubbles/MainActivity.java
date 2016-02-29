@@ -22,6 +22,7 @@ import org.andengine.engine.options.EngineOptions;
 import org.andengine.engine.options.ScreenOrientation;
 import org.andengine.engine.options.resolutionpolicy.RatioResolutionPolicy;
 import org.andengine.entity.IEntity;
+import org.andengine.entity.modifier.FadeInModifier;
 import org.andengine.entity.modifier.FadeOutModifier;
 import org.andengine.entity.modifier.ScaleModifier;
 import org.andengine.entity.primitive.Rectangle;
@@ -131,13 +132,10 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
     @Override
     public EngineOptions onCreateEngineOptions() {
         //Toast.makeText(this, "Make 10 Bubbles", Toast.LENGTH_LONG).show();
-
         Instance = this;
-
         final Camera camera = new Camera(0, 0, CAMERA_WIDTH, CAMERA_HEIGHT);
         return new EngineOptions(true, ScreenOrientation.PORTRAIT_FIXED, new RatioResolutionPolicy(CAMERA_WIDTH, CAMERA_HEIGHT), camera);
     }
-
 
     @Override
     public void onCreateResources() {
@@ -178,7 +176,7 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
         Bitmap bmpExit =  BitmapFactory.decodeResource(getResources(),R.drawable.closebutton);
         BitmapTextureAtlasSource srcExit = new BitmapTextureAtlasSource(bmpExit);
         BitmapTextureAtlas exitTextureAtlas = new BitmapTextureAtlas(this.getTextureManager(), bmpExit.getWidth(), bmpExit.getHeight(), TextureOptions.NEAREST);
-        MenuButton.ReviewButtonTextureRegion = TextureRegionFactory.createFromSource(exitTextureAtlas, srcExit,0,0);
+        MenuButton.ExitButtonTextureRegion = TextureRegionFactory.createFromSource(exitTextureAtlas, srcExit,0,0);
         exitTextureAtlas.load();
 
         //Number Textures
@@ -266,6 +264,7 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
                     //TODO: if (_infoScreen == nil)
                     addNumber();
                     mScene.sortChildren();
+                    removeOutOfScreenBubbles();
                 }
 
                 timer.setTimerSeconds(onMenu ? 0.25f : levelIntervalInSeconds);
@@ -422,8 +421,8 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
         else
             no = random.nextInt(5)+5;
 
-        float pX = xMargin+nW/2+random.nextInt((int)(frameW-2*xMargin-nW));
-        float pY = yMargin+nW/2;
+        float pX = xMargin+random.nextInt((int)(frameW-2*xMargin-nW));
+        float pY = yMargin;
 
         bubble = new NumberBubble(pX,pY, NumberBubble.nTTextureRegions.get(no-1),this.getVertexBufferObjectManager(),no,nW);
 
@@ -452,8 +451,10 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
         runOnUpdateThread(new Runnable() {
             @Override
             public void run() {
+                bubble.setIgnoreUpdate(true);
                 mScene.detachChild(bubble);
                 mPhysicsWorld.destroyBody(bubble.Body);
+                bubble.dispose();
             }
         });
     }
@@ -504,12 +505,12 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
     public void checkGameOver() {
         float frameH = CAMERA_HEIGHT;
         for (NumberBubble b: Bubbles) {
-            if (b.getY()>yMargin + b.Radius/2)
+            if (b.getY()<yMargin)
             {
                 gameOver();
                 return;
             }
-            else if (b.getY()>frameH*0.25 + yMargin + b.Radius/2)
+            else if (b.getY()<frameH*0.25 + yMargin)
             {
                 b.playWarnSound();
             }
@@ -597,16 +598,16 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
             }
         }
 
+        if (dI.size()<1)
+            return;
+
         Bubbles.removeAll(dI);
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                for (NumberBubble b : dI) {
-                    mScene.detachChild(b);
-                    mPhysicsWorld.destroyBody(b.Body);
-                }
-            }
-        });
+        for (NumberBubble b : dI) {
+            b.setIgnoreUpdate(true);
+            mScene.detachChild(b);
+            mPhysicsWorld.destroyBody(b.Body);
+            b.dispose();
+        }
     }
 
     private void removeBucket()
@@ -618,43 +619,53 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
 
     private void removeMenu()
     {
-        final FadeOutModifier m1 = new FadeOutModifier(1) {
+        mScene.detachChild(playButton);
+        mScene.detachChild(infoButton);
+        mScene.detachChild(highScoreButton);
+        mScene.detachChild(reviewButton);
+        /*
+        final FadeOutModifier m1 = new FadeOutModifier(0.3f) {
             @Override
             protected void onModifierFinished(IEntity pItem) {
                 super.onModifierFinished(pItem);
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
+                        //playButton.dispose();
+                        playButton.setIgnoreUpdate(true);
                         mScene.detachChild(playButton);
                     }
                 });
-                final FadeOutModifier m2 = new FadeOutModifier(1) {
+                final FadeOutModifier m2 = new FadeOutModifier(0.3f) {
                     @Override
                     protected void onModifierFinished(IEntity pItem) {
                         super.onModifierFinished(pItem);
                         runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
+                                infoButton.setIgnoreUpdate(true);
                                 mScene.detachChild(infoButton);
                             }
                         });
-                        final FadeOutModifier m3 = new FadeOutModifier(1) {
+                        final FadeOutModifier m3 = new FadeOutModifier(0.3f) {
                             @Override
                             protected void onModifierFinished(IEntity pItem) {
                                 super.onModifierFinished(pItem);
                                 runOnUiThread(new Runnable() {
                                     @Override
                                     public void run() {
+                                        highScoreButton.setIgnoreUpdate(true);
                                         mScene.detachChild(highScoreButton);
                                     }
                                 });
-                                final FadeOutModifier m4 = new FadeOutModifier(1) {
+                                final FadeOutModifier m4 = new FadeOutModifier(0.3f) {
                                     @Override
                                     protected void onModifierFinished(IEntity pItem) {
                                         super.onModifierFinished(pItem);
                                         runOnUiThread(new Runnable() {
                                             @Override
                                             public void run() {
+                                                reviewButton.setIgnoreUpdate(true);
                                                 mScene.detachChild(reviewButton);
                                             }
                                         });
@@ -670,6 +681,7 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
             }
         };
         playButton.registerEntityModifier(m1);
+        */
 
         mScene.detachChild(exitButton);
     }
@@ -696,59 +708,91 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
         playButton = new MenuButton(frameW/2 - menuBtnW/2,
                 frameH/2 - menuBtnH*1.1f*1.5f - menuBtnH/2,
                 MenuButton.PlayButtonTextureRegion,
-                getVertexBufferObjectManager());
+                getVertexBufferObjectManager())
+        {
+            @Override
+            public boolean onAreaTouched(TouchEvent pSceneTouchEvent, float pTouchAreaLocalX, float pTouchAreaLocalY) {
+                if (pSceneTouchEvent.isActionDown()) {
+                    startGame();
+                    return true;
+                }
+                else
+                    return false;
+            }
+        };
         playButton.setSize(menuBtnW, menuBtnH);
         playButton.setZIndex(9);
+        mScene.registerTouchArea(playButton);
+        mScene.setTouchAreaBindingOnActionDownEnabled(true);
         mScene.attachChild(playButton);
 
-        /*
-        _playButton = [MenuButton playButton];
-        _playButton.position = CGPointMake(CGRectGetMidX(self.frame),
-                CGRectGetMidY(self.frame) + menuBtnH * 1.1 * 1.5);
-        [_playButton setSize:CGSizeMake(menuBtnW, menuBtnH)];
-        [_playButton setZPosition:9];
-        [self addChild:_playButton];
+        infoButton = new MenuButton(frameW/2 - menuBtnW/2,
+                frameH/2 - menuBtnH*1.1f*0.5f - menuBtnH/2,
+                MenuButton.InfoButtonTextureRegion,
+                getVertexBufferObjectManager());
+        infoButton.setSize(menuBtnW, menuBtnH);
+        infoButton.setZIndex(9);
+        mScene.attachChild(infoButton);
+
+        highScoreButton = new MenuButton(frameW/2 - menuBtnW/2,
+                frameH/2 + menuBtnH*1.1f*0.5f - menuBtnH/2,
+                MenuButton.HighScoreButtonTextureRegion,
+                getVertexBufferObjectManager());
+        highScoreButton.setSize(menuBtnW, menuBtnH);
+        highScoreButton.setZIndex(9);
+        mScene.attachChild(highScoreButton);
+
+        reviewButton = new MenuButton(frameW/2 - menuBtnW/2,
+                frameH/2 + menuBtnH*1.1f*1.5f - menuBtnH/2,
+                MenuButton.ReviewButtonTextureRegion,
+                getVertexBufferObjectManager());
+        reviewButton.setSize(menuBtnW, menuBtnH);
+        reviewButton.setZIndex(9);
+        mScene.attachChild(reviewButton);
+
+        exitButton = new MenuButton(frameW-xMargin-menuBtnW/2/2-menuBtnW/2,
+                yMargin+menuBtnH/2/2-menuBtnH/2,
+                MenuButton.ExitButtonTextureRegion,
+                getVertexBufferObjectManager());
+        exitButton.setSize(menuBtnW/2, menuBtnH/2);
+        exitButton.setZIndex(9);
+        mScene.attachChild(exitButton);
 
 
-        _infoButton = [MenuButton infoButton];
-        _infoButton.position = CGPointMake(CGRectGetMidX(self.frame),
-                CGRectGetMidY(self.frame) + menuBtnH * 1.1 * 0.5);
-        [_infoButton setSize:CGSizeMake(menuBtnW, menuBtnH)];
-        [_infoButton setZPosition:9];
-        [self addChild:_infoButton];
+        //Animations
+        playButton.setAlpha(0);
+        infoButton.setAlpha(0);
+        highScoreButton.setAlpha(0);
+        reviewButton.setAlpha(0);
 
-
-        _highScoreButton = [MenuButton highScoreButton];
-        _highScoreButton.position = CGPointMake(CGRectGetMidX(self.frame),
-                CGRectGetMidY(self.frame) + menuBtnH * 1.1 * -0.5);
-        [_highScoreButton setSize:CGSizeMake(menuBtnW, menuBtnH)];
-        [_highScoreButton setZPosition:9];
-        [self addChild:_highScoreButton];
-
-
-        _reviewButton = [MenuButton reviewButton];
-        _reviewButton.position = CGPointMake(CGRectGetMidX(self.frame),
-                CGRectGetMidY(self.frame) + menuBtnH * 1.1 * -1.5);
-        [_reviewButton setSize:CGSizeMake(menuBtnW, menuBtnH)];
-        [_reviewButton setZPosition:9];
-        [self addChild:_reviewButton];
-
-
-        _exitButton = [MenuButton exitButton];
-        _exitButton.position = CGPointMake(frameW-xMargin-menuBtnW/2/2,
-                frameH-yMargin-menuBtnH/2/2);
-        [_exitButton setSize:CGSizeMake(menuBtnW/2, menuBtnH/2)];
-        [_exitButton setZPosition:9];
-        [self addChild:_exitButton];
-
-        float duration = 0.5;
-        [_playButton setAlpha:0];
-        [_infoButton setAlpha:0];
-        [_highScoreButton setAlpha:0];
-        [_reviewButton setAlpha:0];
-
-        [_playButton runAction:[SKAction fadeInWithDuration:duration*1] completion:^{ [_infoButton runAction:[SKAction fadeInWithDuration:duration*1] completion:^{ [_highScoreButton runAction:[SKAction fadeInWithDuration:duration*1] completion:^{ [_reviewButton runAction:[SKAction fadeInWithDuration:duration*1]];}];}];}];
-        */
+        FadeInModifier m1 = new FadeInModifier(1) {
+            @Override
+            protected void onModifierFinished(IEntity pItem) {
+                super.onModifierFinished(pItem);
+                FadeInModifier m1 = new FadeInModifier(1){
+                    @Override
+                    protected void onModifierFinished(IEntity pItem) {
+                        super.onModifierFinished(pItem);
+                        FadeInModifier m1 = new FadeInModifier(1){
+                            @Override
+                            protected void onModifierFinished(IEntity pItem) {
+                                super.onModifierFinished(pItem);
+                                FadeInModifier m1 = new FadeInModifier(1){
+                                    @Override
+                                    protected void onModifierFinished(IEntity pItem) {
+                                        super.onModifierFinished(pItem);
+                                    }
+                                };
+                                reviewButton.registerEntityModifier(m1);
+                            }
+                        };
+                        highScoreButton.registerEntityModifier(m1);
+                    }
+                };
+                infoButton.registerEntityModifier(m1);
+            }
+        };
+        playButton.registerEntityModifier(m1);
    }
 
     private void createBackground() {
