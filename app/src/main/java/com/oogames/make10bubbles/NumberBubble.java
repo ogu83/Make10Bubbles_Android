@@ -1,10 +1,14 @@
 package com.oogames.make10bubbles;
 
+import com.badlogic.gdx.physics.box2d.Body;
+
+import org.andengine.entity.IEntity;
+import org.andengine.entity.modifier.RotationByModifier;
+import org.andengine.entity.modifier.RotationModifier;
+import org.andengine.entity.modifier.ScaleModifier;
 import org.andengine.entity.sprite.AnimatedSprite;
-import org.andengine.entity.sprite.Sprite;
 import org.andengine.input.touch.TouchEvent;
 import org.andengine.opengl.texture.region.ITiledTextureRegion;
-import org.andengine.opengl.texture.region.TextureRegion;
 import org.andengine.opengl.vbo.VertexBufferObjectManager;
 import org.andengine.util.debug.Debug;
 
@@ -14,8 +18,6 @@ import java.util.ArrayList;
  * Created by oguzkoroglu on 28/02/16.
  */
 public class NumberBubble extends AnimatedSprite {
-    //public static ArrayList<TextureRegion> nTextureRegion;
-    //public static ArrayList<TextureRegion> nSTextureRegion;
     public static ArrayList<ITiledTextureRegion> nTTextureRegions;
 
     public NumberBubble(float pX, float pY, ITiledTextureRegion pTextureRegion, VertexBufferObjectManager pVertexBufferObjectManager) {
@@ -28,28 +30,93 @@ public class NumberBubble extends AnimatedSprite {
         Radius = radius;
         setWidth(radius);
         setHeight(radius);
+        setZIndex(1);
     }
 
     @Override
     public boolean onAreaTouched(TouchEvent pSceneTouchEvent, float pTouchAreaLocalX, float pTouchAreaLocalY) {
-        //Debug.d("Bubble Touched");
         if (pSceneTouchEvent.isActionDown()) {
             SetSelected(!IsSelected);
+            MainActivity.Instance.ExplodeBubbles();
+            setHint(false);
+            playClickSound();
             return true;
         }
         else
             return false;
-        //return super.onAreaTouched(pSceneTouchEvent, pTouchAreaLocalX, pTouchAreaLocalY);
     }
 
     public void SetSelected(boolean isSelected) {
-        Debug.d(String.format("No : %d Bubble Selected : %s", No, isSelected));
+        //Debug.d(String.format("No : %d Bubble Selected : %s", No, isSelected));
         IsSelected = isSelected;
         setCurrentTileIndex(isSelected ? 1 : 0);
+    }
+
+    public void ShrinkAction() {
+        final NumberBubble my = this;
+        ScaleModifier modifier = new ScaleModifier(0.25f, 1f, 0.1f) {
+            @Override
+            protected void onModifierFinished(IEntity pItem) {
+                super.onModifierFinished(pItem);
+                MainActivity.Instance.CalculateScore(my);
+                MainActivity.Instance.DrawScore();
+                MainActivity.Instance.RemoveBubble(my);
+                MainActivity.Instance.onExplode = false;
+            }
+        };
+        registerEntityModifier(modifier);
+    }
+
+    public void setHint(boolean on) {
+        if (on) {
+            RotationModifier r1 = new RotationModifier(0.1f,0,2);
+            registerEntityModifier(r1);
+            ScaleModifier m1 = new ScaleModifier(0.1f, 1f, 110f/100f) {
+                @Override
+                protected void onModifierFinished(IEntity pItem) {
+                    super.onModifierFinished(pItem);
+                    ScaleModifier m1 = new ScaleModifier(0.1f, 1f, 100f/110f) {
+                        @Override
+                        protected void onModifierFinished(IEntity pItem) {
+                            super.onModifierFinished(pItem);
+                            ScaleModifier m1 = new ScaleModifier(0.1f, 1f, 110f/100f) {
+                                @Override
+                                protected void onModifierFinished(IEntity pItem) {
+                                    super.onModifierFinished(pItem);
+                                    ScaleModifier m1 = new ScaleModifier(0.1f, 1f, 100f/110f) {
+                                        @Override
+                                        protected void onModifierFinished(IEntity pItem) {
+                                            super.onModifierFinished(pItem);
+                                        }
+                                    };
+                                    registerEntityModifier(m1);
+                                }
+                            };
+                            registerEntityModifier(m1);
+                        }
+                    };
+                    registerEntityModifier(m1);
+                }
+            };
+            registerEntityModifier(m1);
+        }
+    }
+
+    public void playWarnSound() {
+        //TODO:Play warn sound
+    }
+
+    public void playWhoopSound() {
+        //TODO:Play whoop sound
+    }
+
+    public void playClickSound() {
+        //TODO:Play Click Sound
     }
 
     public int No;
     public float Radius;
     public boolean IsSelected;
     public boolean IsRemoved;
+    public Body Body;
 }
