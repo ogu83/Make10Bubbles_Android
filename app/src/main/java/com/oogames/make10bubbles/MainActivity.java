@@ -1,11 +1,22 @@
 package com.oogames.make10bubbles;
 
+import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.DialogInterface;
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
 import android.graphics.Typeface;
 import android.hardware.SensorManager;
+import android.net.Uri;
+import android.os.Environment;
+import android.os.StrictMode;
 import android.provider.CalendarContract;
+import android.provider.Settings;
 import android.text.style.TtsSpan;
+import android.widget.EditText;
+import android.widget.LinearLayout;
 import android.widget.Switch;
 import android.widget.Toast;
 
@@ -33,6 +44,7 @@ import org.andengine.entity.sprite.AnimatedSprite;
 import org.andengine.entity.sprite.Sprite;
 import org.andengine.entity.text.Text;
 import org.andengine.entity.util.FPSLogger;
+import org.andengine.entity.util.ScreenCapture;
 import org.andengine.extension.physics.box2d.PhysicsConnector;
 import org.andengine.extension.physics.box2d.PhysicsFactory;
 import org.andengine.extension.physics.box2d.PhysicsWorld;
@@ -59,11 +71,29 @@ import org.andengine.util.color.Color;
 import org.andengine.util.debug.Debug;
 import org.andengine.util.math.MathUtils;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Array;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.net.URLEncoder;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.Timer;
+
+import javax.net.ssl.HttpsURLConnection;
 
 import static java.util.Collections.synchronizedList;
 
@@ -129,10 +159,21 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
 
     private TimerHandler timer;
 
+    private String android_id = "";
+
+    public MainActivity()
+    {
+        super();
+        Instance = this;
+        StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
+        StrictMode.setThreadPolicy(policy);
+        //android_id = Settings.Secure.getString(this.getContentResolver(), Settings.Secure.ANDROID_ID);
+        //Debug.d(String.format("Main Activity with AndroidID: %s", android_id));
+    }
+
     @Override
     public EngineOptions onCreateEngineOptions() {
         //Toast.makeText(this, "Make 10 Bubbles", Toast.LENGTH_LONG).show();
-        Instance = this;
         final Camera camera = new Camera(0, 0, CAMERA_WIDTH, CAMERA_HEIGHT);
         return new EngineOptions(true, ScreenOrientation.PORTRAIT_FIXED, new RatioResolutionPolicy(CAMERA_WIDTH, CAMERA_HEIGHT), camera);
     }
@@ -232,6 +273,9 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
 
     @Override
     public Scene onCreateScene() {
+        xMargin = CAMERA_WIDTH / 18;
+        yMargin = CAMERA_HEIGHT / 16;
+
         this.mEngine.registerUpdateHandler(new FPSLogger());
 
         this.mScene = new Scene();
@@ -379,8 +423,7 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
         });
     }
 
-    private void levelUp()
-    {
+    private void levelUp() {
         Debug.d("Level Up");
         nextLevelScore *= 2;
         levelIntervalInSeconds *= 0.8;
@@ -388,8 +431,7 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
         bubbleRadiusDivider = Math.max(0,bubbleRadiusDivider);
     }
 
-    public void CalculateScore(NumberBubble sender)
-    {
+    public void CalculateScore(NumberBubble sender) {
         Debug.d(String.format("Score: %d", score));
         score += 0.1 * ((100.0 / 4) * 10 / levelIntervalInSeconds);
         if (nextLevelScore < score)
@@ -428,10 +470,6 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
 
         body = PhysicsFactory.createCircleBody(this.mPhysicsWorld, bubble, BodyDef.BodyType.DynamicBody, objectFixtureDef);
         body.setFixedRotation(true);
-        //MassData massData = new MassData();
-        //massData.mass = 10;
-        //body.setMassData(massData);
-        //body.setAngularDamping(0.05f);
         bubble.Body = body;
 
         Bubbles.add(bubble);
@@ -443,8 +481,7 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
         this.mPhysicsWorld.registerPhysicsConnector(new PhysicsConnector(bubble, body, true, true));
     }
 
-    public void RemoveBubble(final NumberBubble bubble)
-    {
+    public void RemoveBubble(final NumberBubble bubble) {
         if (bubble == null) return;
         if (!Bubbles.contains(bubble)) return;
         Bubbles.remove(bubble);
@@ -460,16 +497,13 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
         });
     }
 
-    public void ExplodeBubbles()
-    {
+    public void ExplodeBubbles() {
         onExplode = true;
         int sum = 0;
         boolean explode = false;
         boolean deselect = false;
-        for (NumberBubble b:  Bubbles)
-        {
-            if (b.IsSelected)
-            {
+        for (NumberBubble b:  Bubbles) {
+            if (b.IsSelected) {
                 sum += b.No;
                 explode = (sum == 10);
                 deselect = sum > 10;
@@ -478,21 +512,16 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
             }
         }
 
-        if (deselect)
-        {
-            for (NumberBubble b:  Bubbles)
-            {
+        if (deselect) {
+            for (NumberBubble b:  Bubbles) {
                 if ( Bubbles.get(0) == b) b.playWarnSound();
                 b.SetSelected(false);
             }
             onExplode = false;
         }
-        else if (explode)
-        {
-            for (NumberBubble b:  Bubbles)
-            {
-                if (b.IsSelected && !b.IsRemoved)
-                {
+        else if (explode) {
+            for (NumberBubble b:  Bubbles) {
+                if (b.IsSelected && !b.IsRemoved) {
                     b.IsRemoved = true;
                     b.playWhoopSound();
                     b.ShrinkAction();
@@ -506,13 +535,11 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
     public void checkGameOver() {
         float frameH = CAMERA_HEIGHT;
         for (NumberBubble b: Bubbles) {
-            if (b.getY()<yMargin)
-            {
+            if (b.getY()<yMargin) {
                 gameOver();
                 return;
             }
-            else if (b.getY()<frameH*0.25 + yMargin)
-            {
+            else if (b.getY()<frameH*0.25 + yMargin) {
                 b.playWarnSound();
             }
         }
@@ -743,7 +770,18 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
         infoButton = new MenuButton(frameW/2 - menuBtnW/2,
                 frameH/2 - menuBtnH*1.1f*0.5f - menuBtnH/2,
                 MenuButton.InfoButtonTextureRegion,
-                getVertexBufferObjectManager());
+                getVertexBufferObjectManager())
+        {
+            @Override
+            public boolean onAreaTouched(TouchEvent pSceneTouchEvent, float pTouchAreaLocalX, float pTouchAreaLocalY) {
+                if (pSceneTouchEvent.isActionDown()) {
+                    gotoHowToPlay();
+                    return true;
+                }
+                else
+                    return false;
+            }
+        };
         infoButton.setSize(menuBtnW, menuBtnH);
         infoButton.setZIndex(9);
         mScene.attachChild(infoButton);
@@ -751,7 +789,18 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
         highScoreButton = new MenuButton(frameW/2 - menuBtnW/2,
                 frameH/2 + menuBtnH*1.1f*0.5f - menuBtnH/2,
                 MenuButton.HighScoreButtonTextureRegion,
-                getVertexBufferObjectManager());
+                getVertexBufferObjectManager())
+        {
+            @Override
+            public boolean onAreaTouched(TouchEvent pSceneTouchEvent, float pTouchAreaLocalX, float pTouchAreaLocalY) {
+                if (pSceneTouchEvent.isActionDown()) {
+                    gotoHighScores();
+                    return true;
+                }
+                else
+                    return false;
+            }
+        };
         highScoreButton.setSize(menuBtnW, menuBtnH);
         highScoreButton.setZIndex(9);
         mScene.attachChild(highScoreButton);
@@ -759,7 +808,18 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
         reviewButton = new MenuButton(frameW/2 - menuBtnW/2,
                 frameH/2 + menuBtnH*1.1f*1.5f - menuBtnH/2,
                 MenuButton.ReviewButtonTextureRegion,
-                getVertexBufferObjectManager());
+                getVertexBufferObjectManager())
+        {
+            @Override
+            public boolean onAreaTouched(TouchEvent pSceneTouchEvent, float pTouchAreaLocalX, float pTouchAreaLocalY) {
+                if (pSceneTouchEvent.isActionDown()) {
+                    gotoRates();
+                    return true;
+                }
+                else
+                    return false;
+            }
+        };
         reviewButton.setSize(menuBtnW, menuBtnH);
         reviewButton.setZIndex(9);
         mScene.attachChild(reviewButton);
@@ -767,11 +827,21 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
         exitButton = new MenuButton(frameW-xMargin-menuBtnW/2/2-menuBtnW/2,
                 yMargin+menuBtnH/2/2-menuBtnH/2,
                 MenuButton.ExitButtonTextureRegion,
-                getVertexBufferObjectManager());
+                getVertexBufferObjectManager())
+        {
+            @Override
+            public boolean onAreaTouched(TouchEvent pSceneTouchEvent, float pTouchAreaLocalX, float pTouchAreaLocalY) {
+                if (pSceneTouchEvent.isActionDown()) {
+                    doExit();
+                    return true;
+                }
+                else
+                    return false;
+            }
+        };
         exitButton.setSize(menuBtnW / 2, menuBtnH / 2);
         exitButton.setZIndex(9);
         mScene.attachChild(exitButton);
-
 
         //Animations
         playButton.setAlpha(0);
@@ -780,7 +850,6 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
         reviewButton.setAlpha(0);
 
         Debug.d("Create menu started");
-
         FadeInModifier m1 = new FadeInModifier(1) {
             @Override
             protected void onModifierFinished(IEntity pItem) {
@@ -813,11 +882,11 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
    }
 
     private void createBackground() {
-        mScene.setBackground(new Background(0.9f,0.9f,1f));
+        mScene.setBackground(new Background(0.9f, 0.9f, 1f));
         float frameW = CAMERA_WIDTH;
         float frameH = CAMERA_HEIGHT;
         Sprite background = new Sprite(0,0,backgroundTextureRegion,getVertexBufferObjectManager());
-        background.setSize(frameW,frameH);
+        background.setSize(frameW, frameH);
         background.setZIndex(-1);
         mScene.attachChild(background);
         Debug.d("Background created");
@@ -842,7 +911,206 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
         //TODO: Create Background End Music
     }
 
-    private void SendHighScoreToServerAlert(){
-        //TODO: SendHighScoreToServerAlert
+    private void SendHighScoreToServerAlert() {
+        System.out.printf("Sending High Score To Server Dialog, Score : %d%n", score);
+        final Activity mainActivity = this;
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                final EditText input = new EditText(mainActivity);
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.MATCH_PARENT);
+                input.setLayoutParams(lp);
+                new AlertDialog.Builder(MainActivity.Instance)
+                        .setView(input)
+                        .setTitle("Congratulations")
+                        .setCancelable(false)
+                        .setMessage(String.format("Great Score: %d. Enter your name to the high score table", score))
+                        .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
+                            public void onClick(DialogInterface dialog, int which) {
+                                UserName = input.getText().toString();
+                                System.out.printf("Username selected: %s%n", UserName);
+                                SendHighScoreToServer();
+                                gotoMenu();
+                            }
+                        })
+                        .setNegativeButton(android.R.string.no, new DialogInterface.OnClickListener() {
+                            public void onClick(DialogInterface dialog, int which) {
+                                gotoMenu();
+                            }
+                        })
+                        .setIcon(android.R.drawable.ic_dialog_alert)
+                        .show();
+            }
+        });
     }
+
+    private void SendHighScoreToServer() {
+        Runnable task = new Runnable() {
+            @Override
+            public void run() {
+                String deviceId = android_id;
+                UserName = new String(UserName.getBytes(Charset.forName("UTF-8")));
+                String url = String.format(
+                        "%s/HighScore?appId=%s&deviceId=%s&name=%s&score=%d",
+                        Constants.ApiAddress, Constants.AppId, deviceId, UserName, score);
+
+                System.out.println(String.format("Send High Score To Server Score :%d Device Id: %s Username: %s%n", score, deviceId, UserName));
+                performPostCall(url, new HashMap<String, String>());
+            }
+        };
+        task.run();
+        postToSocial();
+    }
+
+    private String performPostCall(String requestURL, HashMap<String, String> postDataParams) {
+        URL url;
+        String response = "";
+
+        System.out.printf("Perform HttpPost: %s%n", requestURL);
+
+        try {
+            url = new URL(requestURL);
+
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setReadTimeout(15000);
+            conn.setConnectTimeout(15000);
+            conn.setRequestMethod("POST");
+            conn.setDoInput(true);
+            conn.setDoOutput(true);
+
+            OutputStream os = conn.getOutputStream();
+            BufferedWriter writer = new BufferedWriter(
+                    new OutputStreamWriter(os, "UTF-8"));
+            writer.write(getPostDataString(postDataParams));
+
+            writer.flush();
+            writer.close();
+            os.close();
+            int responseCode = conn.getResponseCode();
+
+            if (responseCode == HttpsURLConnection.HTTP_OK) {
+                String line;
+                BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                while ((line = br.readLine()) != null) {
+                    response += line;
+                }
+            } else {
+                response = "";
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        System.out.printf("Http Post Response : %s%n", response);
+        return response;
+    }
+
+    private String getPostDataString(HashMap<String, String> params) throws UnsupportedEncodingException {
+        if (params == null)
+            return null;
+
+        StringBuilder result = new StringBuilder();
+        boolean first = true;
+        for (Map.Entry<String, String> entry : params.entrySet()) {
+            if (first)
+                first = false;
+            else
+                result.append("&");
+
+            result.append(URLEncoder.encode(entry.getKey(), "UTF-8"));
+            result.append("=");
+            result.append(URLEncoder.encode(entry.getValue(), "UTF-8"));
+        }
+
+        return result.toString();
+    }
+
+    private void postToSocial() {
+        /*
+        Bitmap bmp = screenShot();
+        ByteArrayOutputStream stream = new ByteArrayOutputStream();
+        bmp.compress(Bitmap.CompressFormat.JPEG, 90, stream);
+        byte[] bmpByteArray = stream.toByteArray();
+
+        File f = new File(Environment.getExternalStorageDirectory() + File.separator + "temporary_file.jpg");
+        try {
+            f.createNewFile();
+            FileOutputStream fo = new FileOutputStream(f);
+            fo.write(bmpByteArray);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        */
+        final String filePath = Environment.getExternalStorageDirectory() + File.separator + "temporary_file.jpg";
+        Debug.d(String.format("Screen Capturing at %s", filePath));
+        ScreenCapture screenCapture = new ScreenCapture();
+        screenCapture.capture(CAMERA_WIDTH, CAMERA_HEIGHT, filePath, new ScreenCapture.IScreenCaptureCallback() {
+            @Override
+            public void onScreenCaptured(String pFilePath) {
+                Debug.d(String.format("Screen Captured at %s, Intending Share.", pFilePath));
+                Intent share = new Intent(Intent.ACTION_SEND);
+                share.setType("image/jpeg"); // might be text, sound, whatever
+                //share.putExtra(Intent.EXTRA_STREAM, Uri.parse("file:///sdcard/temporary_file.jpg"));
+                share.putExtra(Intent.EXTRA_STREAM, Uri.parse(pFilePath));
+                share.putExtra(Intent.EXTRA_TEXT, String.format("Hey, I completed #%s with score %d %s", Constants.GameName, score, Constants.WebSite));
+                //share.putExtra(Intent.EXTRA_TEXT, Constants.WebSite);
+                //share.putExtra(Intent.EXTRA_HTML_TEXT, String.format("<a href='%s'>%s</a>", Constants.WebSite, Constants.WebSite));
+                startActivity(Intent.createChooser(share, "Share Your Score"));
+            }
+
+            @Override
+            public void onScreenCaptureFailed(String pFilePath, Exception pException) {
+                Debug.d("Screen Capture Failed, ");
+                pException.printStackTrace();
+            }
+        });
+    }
+
+    private void doExit() {
+        new AlertDialog.Builder(this)
+                .setTitle("Leaving")
+                .setMessage("Do you want to leave?")
+                .setCancelable(false)
+                .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int which) {
+                        (MainActivity.Instance).finish();
+                        System.exit(0);
+                    }
+                })
+                .setNegativeButton(android.R.string.no, new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int which) {
+                        // do nothing
+                    }
+                })
+                .setIcon(android.R.drawable.ic_dialog_alert)
+                .show();
+    }
+
+    private void gotoHighScores() {
+        String link = Constants.WebSite + "/HighScore";
+        Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(link));
+        this.startActivity(browserIntent);
+    }
+
+    private void gotoRates() {
+        String link = Constants.GoogleAppLink;
+        Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(link));
+        this.startActivity(browserIntent);
+    }
+
+    private void gotoHowToPlay() {
+
+    }
+
+    /*
+    private Bitmap screenShot() {
+        Bitmap b = Bitmap.createBitmap( getWidth(), getHeight(), Bitmap.Config.RGB_565);
+        Canvas c = new Canvas(b);
+        ScreenCapture s = new ScreenCapture();
+        s.capture(CAMERA_WIDTH,CAMERA_HEIGHT,);
+        return b;
+    }
+    */
 }
