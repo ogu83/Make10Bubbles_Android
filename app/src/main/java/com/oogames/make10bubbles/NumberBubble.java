@@ -31,7 +31,7 @@ public class NumberBubble extends AnimatedSprite {
         setWidth(radius);
         setHeight(radius);
         setZIndex(1);
-        Debug.d(String.format("Bubble added to scene, no: %d, radius: %s", no, radius));
+        //Debug.d(String.format("Bubble added to scene, no: %d, radius: %s", no, radius));
     }
 
     @Override
@@ -109,22 +109,22 @@ public class NumberBubble extends AnimatedSprite {
 
     public void playWarnSound() {
         Debug.d("Playing Warn Sound");
-        //TODO:Play warn sound
+        MainActivity.Instance.SndWarning.play();
     }
 
     public void playWhoopSound() {
         Debug.d("Playing Whoop Sound");
-        //TODO:Play whoop sound
+        MainActivity.Instance.SndWhoop.play();
     }
 
     public void playClickSound() {
         Debug.d("Playing Click Sound");
-        //TODO:Play Click Sound
+        MainActivity.Instance.SndClick.play();
     }
 
     public void playHitSound() {
         Debug.d("Playing Hit Sound");
-        //TODO:Play Hit Sound
+        MainActivity.Instance.SndDrop.play();
     }
 
     public int No;

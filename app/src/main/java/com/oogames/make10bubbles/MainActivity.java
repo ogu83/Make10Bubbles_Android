@@ -4,11 +4,14 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Typeface;
 import android.hardware.SensorManager;
+import android.media.AudioManager;
+import android.media.SoundPool;
 import android.net.Uri;
 import android.os.Environment;
 import android.os.StrictMode;
@@ -23,9 +26,17 @@ import android.widget.Toast;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.Body;
 import com.badlogic.gdx.physics.box2d.BodyDef;
+import com.badlogic.gdx.physics.box2d.Contact;
+import com.badlogic.gdx.physics.box2d.ContactImpulse;
+import com.badlogic.gdx.physics.box2d.ContactListener;
+import com.badlogic.gdx.physics.box2d.Fixture;
 import com.badlogic.gdx.physics.box2d.FixtureDef;
+import com.badlogic.gdx.physics.box2d.Manifold;
 import com.badlogic.gdx.physics.box2d.MassData;
 
+import org.andengine.audio.sound.Sound;
+import org.andengine.audio.sound.SoundFactory;
+import org.andengine.audio.sound.SoundManager;
 import org.andengine.engine.camera.Camera;
 import org.andengine.engine.handler.timer.ITimerCallback;
 import org.andengine.engine.handler.timer.TimerHandler;
@@ -114,7 +125,7 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
     private float levelIntervalInSeconds = 3;
 
     private int infoSlideMin = 4;
-    private int infoSlideMax = 15;
+    private int infoSlideMax = 9;
     private int infoSlideCurrent = 4;
 
     public boolean gamePaused=false;
@@ -130,33 +141,42 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
     public int hintCountDown = 5;
 
     private Rectangle ground;
+    private Body groundBody;
     private Rectangle left;
+    private Body leftBody;
     private Rectangle right;
+    private Body rightBody;
 
     private MenuButton playButton;
     private MenuButton infoButton;
     private MenuButton highScoreButton;
     private MenuButton reviewButton;
-    private MenuButton exitButton;
+    //private MenuButton exitButton;
 
     private MenuButton gotoMenuButton;
-    private MenuButton soundButton;
-    private MenuButton playPauseButton;
+    private AnimatedMenuButton soundButton;
+    private AnimatedMenuButton playPauseButton;
+
+    public Sound SndClick;
+    public Sound SndDrop;
+    public Sound SndEndMusic;
+    public Sound SndMusic;
+    public Sound SndWarning;
+    public Sound SndWhoop;
 
     private TextureRegion backgroundTextureRegion;
+    private ITiledTextureRegion infoTextureRegion;
+    private AnimatedSprite InfoScreen;
 
     public Text scoreLabel;
-
     public String UserName;
 
     private List<NumberBubble> Bubbles;
 
     protected PhysicsWorld mPhysicsWorld;
-
     private Scene mScene;
-
+    private SoundPool soundPool;
     private Random random = new Random();
-
     private TimerHandler timer;
 
     private String android_id = "";
@@ -167,27 +187,45 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
         Instance = this;
         StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
         StrictMode.setThreadPolicy(policy);
-        //android_id = Settings.Secure.getString(this.getContentResolver(), Settings.Secure.ANDROID_ID);
-        //Debug.d(String.format("Main Activity with AndroidID: %s", android_id));
     }
 
     @Override
     public EngineOptions onCreateEngineOptions() {
         //Toast.makeText(this, "Make 10 Bubbles", Toast.LENGTH_LONG).show();
         final Camera camera = new Camera(0, 0, CAMERA_WIDTH, CAMERA_HEIGHT);
-        return new EngineOptions(true, ScreenOrientation.PORTRAIT_FIXED, new RatioResolutionPolicy(CAMERA_WIDTH, CAMERA_HEIGHT), camera);
+        EngineOptions op = new EngineOptions(true, ScreenOrientation.PORTRAIT_FIXED, new RatioResolutionPolicy(CAMERA_WIDTH, CAMERA_HEIGHT), camera);
+        op.getAudioOptions().setNeedsMusic(true);
+        op.getAudioOptions().setNeedsSound(true);
+        return op;
     }
 
     @Override
     public void onCreateResources() {
+        android_id = Settings.Secure.getString(this.getContentResolver(), Settings.Secure.ANDROID_ID);
+        Debug.d(String.format("Main Activity with AndroidID: %s", android_id));
+        createSounds();
+        createTextures();
+        createBackgroundMusic();
+    }
+
+    private void createSounds(){
+        SndClick = SoundFactory.createSoundFromResource(getSoundManager(), this, R.raw.button3);
+        SndDrop = SoundFactory.createSoundFromResource(getSoundManager(), this, R.raw.dropball);
+        SndEndMusic = SoundFactory.createSoundFromResource(getSoundManager(), this, R.raw.funlk1);
+        SndMusic = SoundFactory.createSoundFromResource(getSoundManager(), this, R.raw.funmin);
+        SndWarning = SoundFactory.createSoundFromResource(getSoundManager(), this, R.raw.warningsignal);
+        SndWhoop = SoundFactory.createSoundFromResource(getSoundManager(), this, R.raw.whoop);
+    }
+
+    private void createTextures() {
         BitmapFactory.Options opt = new BitmapFactory.Options();
         opt.inMutable = true;
 
         //Background Texture
-        Bitmap bmpBackground =  BitmapFactory.decodeResource(getResources(),R.drawable.background);
+        Bitmap bmpBackground =  BitmapFactory.decodeResource(getResources(), R.drawable.background);
         BitmapTextureAtlasSource srcBackground = new BitmapTextureAtlasSource(bmpBackground);
         BitmapTextureAtlas backTextureAtlas = new BitmapTextureAtlas(this.getTextureManager(), bmpBackground.getWidth(), bmpBackground.getHeight(), TextureOptions.NEAREST);
-        backgroundTextureRegion = TextureRegionFactory.createFromSource(backTextureAtlas, srcBackground,0,0);
+        backgroundTextureRegion = TextureRegionFactory.createFromSource(backTextureAtlas, srcBackground, 0, 0);
         backTextureAtlas.load();
         //Play Button Texture
         Bitmap bmpPlay =  BitmapFactory.decodeResource(getResources(),R.drawable.playbutton);
@@ -219,6 +257,56 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
         BitmapTextureAtlas exitTextureAtlas = new BitmapTextureAtlas(this.getTextureManager(), bmpExit.getWidth(), bmpExit.getHeight(), TextureOptions.NEAREST);
         MenuButton.ExitButtonTextureRegion = TextureRegionFactory.createFromSource(exitTextureAtlas, srcExit,0,0);
         exitTextureAtlas.load();
+        //Sound Button Texture
+        Bitmap bmpSoundOn = BitmapFactory.decodeResource(getResources(),R.drawable.soundon);
+        Bitmap bmpSoundOff = BitmapFactory.decodeResource(getResources(),R.drawable.soundoff);
+        Bitmap bmpSound = BitmapHelper.CombineImages(bmpSoundOn, bmpSoundOff);
+        BitmapTextureAtlasSource soundSrc = new BitmapTextureAtlasSource(bmpSound);
+        BitmapTextureAtlas sndTextureAtlas = new BitmapTextureAtlas(this.getTextureManager(), bmpSound.getWidth(), bmpSound.getHeight(), TextureOptions.NEAREST);
+        MenuButton.SoundButtonTextureRegion = TextureRegionFactory.createTiledFromSource(sndTextureAtlas, soundSrc, 0, 0, 2, 1);
+        sndTextureAtlas.load();
+        //Play Pause Button Texture
+        Bitmap bmpPlay1 = BitmapFactory.decodeResource(getResources(),R.drawable.playbutton);
+        Bitmap bmpPause = BitmapFactory.decodeResource(getResources(),R.drawable.pausebutton);
+        Bitmap bmpPP = BitmapHelper.CombineImages(bmpPlay1,bmpPause);
+        BitmapTextureAtlasSource playSrc = new BitmapTextureAtlasSource(bmpPP);
+        BitmapTextureAtlas ppTextureAtlas = new BitmapTextureAtlas(this.getTextureManager(), bmpPP.getWidth(), bmpPP.getHeight(), TextureOptions.NEAREST);
+        MenuButton.PlayPauseButtonTextureRegion = TextureRegionFactory.createTiledFromSource(ppTextureAtlas, playSrc,0,0,2,1);
+        ppTextureAtlas.load();
+        //GotoMenu Button Texture
+        Bitmap bmpGotoMenu = BitmapFactory.decodeResource(getResources(), R.drawable.cancel);
+        BitmapTextureAtlasSource srcGotoMenu = new BitmapTextureAtlasSource(bmpGotoMenu);
+        BitmapTextureAtlas gotoMenuTextureAtlas = new BitmapTextureAtlas(this.getTextureManager(), bmpGotoMenu.getWidth(), bmpGotoMenu.getHeight(), TextureOptions.NEAREST);
+        MenuButton.GotoMenuButtonTextureRegion = TextureRegionFactory.createFromSource(gotoMenuTextureAtlas, srcGotoMenu, 0, 0);
+        gotoMenuTextureAtlas.load();
+
+        Bitmap bmpInfoSlide4 = BitmapFactory.decodeResource(getResources(), R.drawable.slide4);
+        Bitmap bmpInfoSlide5 = BitmapFactory.decodeResource(getResources(), R.drawable.slide5);
+        Bitmap bmpInfoSlide6 = BitmapFactory.decodeResource(getResources(), R.drawable.slide6);
+        Bitmap bmpInfoSlide7 = BitmapFactory.decodeResource(getResources(), R.drawable.slide7);
+        Bitmap bmpInfoSlide8 = BitmapFactory.decodeResource(getResources(), R.drawable.slide8);
+        Bitmap bmpInfoSlide9 = BitmapFactory.decodeResource(getResources(), R.drawable.slide9);
+        //Bitmap bmpInfoSlide10 = BitmapFactory.decodeResource(getResources(), R.drawable.slide10);
+        //Bitmap bmpInfoSlide11 = BitmapFactory.decodeResource(getResources(), R.drawable.slide11);
+        //Bitmap bmpInfoSlide12 = BitmapFactory.decodeResource(getResources(), R.drawable.slide12);
+        //Bitmap bmpInfoSlide13 = BitmapFactory.decodeResource(getResources(), R.drawable.slide13);
+        //Bitmap bmpInfoSlide14 = BitmapFactory.decodeResource(getResources(), R.drawable.slide14);
+        //Bitmap bmpInfoSlide15 = BitmapFactory.decodeResource(getResources(), R.drawable.slide15);
+        Bitmap infoSlide = BitmapHelper.CombineImages(bmpInfoSlide4, bmpInfoSlide5);
+        infoSlide = BitmapHelper.CombineImages(infoSlide,bmpInfoSlide6);
+        infoSlide = BitmapHelper.CombineImages(infoSlide,bmpInfoSlide7);
+        infoSlide = BitmapHelper.CombineImages(infoSlide,bmpInfoSlide8);
+        infoSlide = BitmapHelper.CombineImages(infoSlide,bmpInfoSlide9);
+        //infoSlide = BitmapHelper.CombineImages(infoSlide,bmpInfoSlide10);
+        //infoSlide = BitmapHelper.CombineImages(infoSlide,bmpInfoSlide11);
+        //infoSlide = BitmapHelper.CombineImages(infoSlide,bmpInfoSlide12);
+        //infoSlide = BitmapHelper.CombineImages(infoSlide,bmpInfoSlide13);
+        //infoSlide = BitmapHelper.CombineImages(infoSlide,bmpInfoSlide14);
+        //infoSlide = BitmapHelper.CombineImages(infoSlide,bmpInfoSlide15);
+        BitmapTextureAtlasSource srcInfoSlide = new BitmapTextureAtlasSource(infoSlide);
+        BitmapTextureAtlas infoSlideAtlas = new BitmapTextureAtlas(this.getTextureManager(), infoSlide.getWidth(), infoSlide.getHeight(), TextureOptions.NEAREST);
+        infoTextureRegion = TextureRegionFactory.createTiledFromSource(infoSlideAtlas, srcInfoSlide,0,0,6,1);
+        infoSlideAtlas.load();
 
         //Number Textures
         NumberBubble.nTTextureRegions = new ArrayList<>();
@@ -283,11 +371,10 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
         this.mScene.setOnSceneTouchListener(this);
 
         this.mPhysicsWorld = new PhysicsWorld(new Vector2(0, SensorManager.GRAVITY_EARTH), false);
-
+        this.mPhysicsWorld.setContactListener(createContactListener());
         this.mScene.registerUpdateHandler(this.mPhysicsWorld);
 
         createBackground();
-        createBackgroundMusic();
         createMenu();
         Bubbles = synchronizedList(new ArrayList<NumberBubble>());
 
@@ -305,10 +392,11 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
                 }
                 else if (onMenu)
                 {
-                    //TODO: if (_infoScreen == nil)
-                    addNumber();
-                    mScene.sortChildren();
-                    removeOutOfScreenBubbles();
+                    if (InfoScreen == null) {
+                        addNumber();
+                        mScene.sortChildren();
+                        removeOutOfScreenBubbles();
+                    }
                 }
 
                 timer.setTimerSeconds(onMenu ? 0.25f : levelIntervalInSeconds);
@@ -332,10 +420,10 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
         right.setColor(ground.getColor());
 
         final FixtureDef wallFixtureDef = PhysicsFactory.createFixtureDef(2,0.15f,0.15f);
-        PhysicsFactory.createBoxBody(this.mPhysicsWorld, ground, BodyDef.BodyType.StaticBody, wallFixtureDef);
+        groundBody = PhysicsFactory.createBoxBody(this.mPhysicsWorld, ground, BodyDef.BodyType.StaticBody, wallFixtureDef);
         //PhysicsFactory.createBoxBody(this.mPhysicsWorld, roof, BodyDef.BodyType.StaticBody, wallFixtureDef);
-        PhysicsFactory.createBoxBody(this.mPhysicsWorld, left, BodyDef.BodyType.StaticBody, wallFixtureDef);
-        PhysicsFactory.createBoxBody(this.mPhysicsWorld, right, BodyDef.BodyType.StaticBody, wallFixtureDef);
+        leftBody = PhysicsFactory.createBoxBody(this.mPhysicsWorld, left, BodyDef.BodyType.StaticBody, wallFixtureDef);
+        rightBody = PhysicsFactory.createBoxBody(this.mPhysicsWorld, right, BodyDef.BodyType.StaticBody, wallFixtureDef);
 
         this.mScene.attachChild(ground);
         //this.mScene.attachChild(roof);
@@ -389,7 +477,7 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
                     //final Font font = FontFactory.create(getFontManager(), getTextureManager(), 256, 256, Typeface.create(Typeface.DEFAULT, Typeface.BOLD), 32);
                     FontFactory.setAssetBasePath("font/");
                     final ITexture fontTexture = new BitmapTextureAtlas(getTextureManager(), 256, 256, TextureOptions.BILINEAR);
-                    final Font font = FontFactory.createFromAsset(getFontManager(), fontTexture, getAssets(), "ComicSansMSRegular.ttf", frameH / 32, true, android.graphics.Color.GREEN);
+                    final Font font = FontFactory.createFromAsset(getFontManager(), fontTexture, getAssets(), "Plok.ttf", frameH / 32, true, new Color(0f, 0.5f, 0).getABGRPackedInt());
                     font.load();
                     scoreLabel = new Text(2 * xMargin, yMargin / 2 + frameH / 32, font, "Score", 26, getVertexBufferObjectManager());
                     //scoreLabel.setColor(Color.GREEN);
@@ -464,14 +552,12 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
             no = random.nextInt(5)+5;
 
         float pX = xMargin+random.nextInt((int)(frameW-2*xMargin-nW));
-        float pY = yMargin;
+        float pY = yMargin+5;
 
-        bubble = new NumberBubble(pX,pY, NumberBubble.nTTextureRegions.get(no-1),this.getVertexBufferObjectManager(),no,nW);
-
+        bubble = new NumberBubble(pX, pY, NumberBubble.nTTextureRegions.get(no-1), getVertexBufferObjectManager(), no, nW);
         body = PhysicsFactory.createCircleBody(this.mPhysicsWorld, bubble, BodyDef.BodyType.DynamicBody, objectFixtureDef);
         body.setFixedRotation(true);
         bubble.Body = body;
-
         Bubbles.add(bubble);
 
         this.mScene.attachChild(bubble);
@@ -491,7 +577,7 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
                 bubble.setIgnoreUpdate(true);
                 mScene.detachChild(bubble);
                 mPhysicsWorld.destroyBody(bubble.Body);
-                Debug.d(String.format("Bubble removed no: %d", bubble.No));
+                //Debug.d(String.format("Bubble removed no: %d", bubble.No));
                 bubble.dispose();
             }
         });
@@ -535,11 +621,11 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
     public void checkGameOver() {
         float frameH = CAMERA_HEIGHT;
         for (NumberBubble b: Bubbles) {
-            if (b.getY()<yMargin) {
+            if (b.getY() < yMargin) {
                 gameOver();
                 return;
             }
-            else if (b.getY()<frameH*0.25 + yMargin) {
+            else if (b.getY() < frameH*0.25 + yMargin) {
                 b.playWarnSound();
             }
         }
@@ -549,7 +635,6 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
         gameOver = true;
         createBackgroundEndMusic();
         SendHighScoreToServerAlert();
-
         Debug.d("Game Over");
     }
 
@@ -595,10 +680,10 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
         }
     }
 
-    public void startGame()
-    {
+    public void startGame() {
         onMenu = false;
         gameOver = false;
+        gamePaused =false;
 
         removeMenu();
         createBucket();
@@ -617,11 +702,12 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
         hintsEnabled = true;
         hintCountDown = 5;
 
+        createBackgroundMusic();
+
         Debug.d("Game started");
     }
 
-    private void removeOutOfScreenBubbles()
-    {
+    private void removeOutOfScreenBubbles() {
         float frameW = CAMERA_WIDTH;
         float frameH = CAMERA_HEIGHT;
 
@@ -635,33 +721,39 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
         if (dI.size()<1)
             return;
 
-        Debug.d(String.format("Out of screen bubbles detected count : %d", dI.size()));
+        //Debug.d(String.format("Out of screen bubbles detected count : %d", dI.size()));
 
         Bubbles.removeAll(dI);
         for (NumberBubble b : dI) {
             b.setIgnoreUpdate(true);
+            mScene.unregisterTouchArea(b);
             mScene.detachChild(b);
             mPhysicsWorld.destroyBody(b.Body);
             b.dispose();
         }
     }
 
-    private void removeBucket()
-    {
+    private void removeBucket() {
         mScene.detachChild(ground);
+        mPhysicsWorld.destroyBody(groundBody);
         mScene.detachChild(left);
+        mPhysicsWorld.destroyBody(leftBody);
         mScene.detachChild(right);
-
+        mPhysicsWorld.destroyBody(rightBody);
         Debug.d("Bucket Removed");
     }
 
-    private void removeMenu()
-    {
+    private void removeMenu() {
         mScene.detachChild(playButton);
+        mScene.unregisterTouchArea(playButton);
         mScene.detachChild(infoButton);
+        mScene.unregisterTouchArea(infoButton);
         mScene.detachChild(highScoreButton);
+        mScene.unregisterTouchArea(highScoreButton);
         mScene.detachChild(reviewButton);
-
+        mScene.unregisterTouchArea(reviewButton);
+        //mScene.detachChild(exitButton);
+        //mScene.unregisterTouchArea(exitButton);
         Debug.d("Menu removed");
 
         /*
@@ -723,8 +815,6 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
         };
         playButton.registerEntityModifier(m1);
         */
-
-        mScene.detachChild(exitButton);
     }
 
     private void gotoMenu()
@@ -734,8 +824,13 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
         removeBucket();
 
         mScene.detachChild(gotoMenuButton);
+        mScene.unregisterTouchArea(gotoMenuButton);
+
         mScene.detachChild(soundButton);
+        mScene.unregisterTouchArea(soundButton);
+
         mScene.detachChild(playPauseButton);
+        mScene.unregisterTouchArea(playPauseButton);
     }
 
     private void createMenu()
@@ -745,6 +840,8 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
         float frameH = CAMERA_HEIGHT;
         float menuBtnW = frameW / 4;
         float menuBtnH = menuBtnW * MenuButton.buttonScaleRatio();
+
+        mScene.setTouchAreaBindingOnActionDownEnabled(true);
 
         playButton = new MenuButton(frameW/2 - menuBtnW/2,
                 frameH/2 - menuBtnH*1.1f*1.5f - menuBtnH/2,
@@ -764,7 +861,6 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
         playButton.setSize(menuBtnW, menuBtnH);
         playButton.setZIndex(9);
         mScene.registerTouchArea(playButton);
-        mScene.setTouchAreaBindingOnActionDownEnabled(true);
         mScene.attachChild(playButton);
 
         infoButton = new MenuButton(frameW/2 - menuBtnW/2,
@@ -784,6 +880,7 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
         };
         infoButton.setSize(menuBtnW, menuBtnH);
         infoButton.setZIndex(9);
+        mScene.registerTouchArea(infoButton);
         mScene.attachChild(infoButton);
 
         highScoreButton = new MenuButton(frameW/2 - menuBtnW/2,
@@ -803,6 +900,7 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
         };
         highScoreButton.setSize(menuBtnW, menuBtnH);
         highScoreButton.setZIndex(9);
+        mScene.registerTouchArea(highScoreButton);
         mScene.attachChild(highScoreButton);
 
         reviewButton = new MenuButton(frameW/2 - menuBtnW/2,
@@ -822,8 +920,10 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
         };
         reviewButton.setSize(menuBtnW, menuBtnH);
         reviewButton.setZIndex(9);
+        mScene.registerTouchArea(reviewButton);
         mScene.attachChild(reviewButton);
 
+        /*
         exitButton = new MenuButton(frameW-xMargin-menuBtnW/2/2-menuBtnW/2,
                 yMargin+menuBtnH/2/2-menuBtnH/2,
                 MenuButton.ExitButtonTextureRegion,
@@ -841,8 +941,9 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
         };
         exitButton.setSize(menuBtnW / 2, menuBtnH / 2);
         exitButton.setZIndex(9);
+        mScene.registerTouchArea(exitButton);
         mScene.attachChild(exitButton);
-
+        */
         //Animations
         playButton.setAlpha(0);
         infoButton.setAlpha(0);
@@ -867,6 +968,7 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
                                     protected void onModifierFinished(IEntity pItem) {
                                         super.onModifierFinished(pItem);
                                         Debug.d("Menu Create finished");
+                                        createBackgroundMusic();
                                     }
                                 };
                                 reviewButton.registerEntityModifier(m1);
@@ -892,23 +994,120 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
         Debug.d("Background created");
     }
 
-    private void createSoundButton(boolean isSoundOn){
-        //TODO: createSoundButton
+    private void createSoundButton(boolean isOn) {
+        int frameH = CAMERA_HEIGHT;
+        double ratio = 1;
+        int h = frameH / 16;
+        int w = (int) (h * ratio);
+        soundButton = new AnimatedMenuButton(xMargin,frameH - yMargin,MenuButton.SoundButtonTextureRegion,getVertexBufferObjectManager())
+        {
+            @Override
+            public boolean onAreaTouched(TouchEvent pSceneTouchEvent, float pTouchAreaLocalX, float pTouchAreaLocalY) {
+                if (pSceneTouchEvent.isActionDown()) {
+                    isSoundOn = !isSoundOn;
+                    soundButton.setCurrentTileIndex(isSoundOn ? 0 : 1);
+                    if (!isSoundOn)
+                        SndMusic.pause();
+                    else
+                        SndMusic.play();
+                    return true;
+                }
+                else
+                    return false;
+            }
+        };
+        soundButton.setSize(w, h);
+        mScene.attachChild(soundButton);
+        mScene.registerTouchArea(soundButton);
     }
 
-    private void createPlayPauseButton(boolean gamePaused){
-        //TODO: createPlayPauseButton
+    private void createPlayPauseButton(final boolean isGamePaused){
+        int frameH = CAMERA_HEIGHT;
+        double ratio = 1;
+        int h = frameH / 16;
+        int w = (int) (h * ratio);
+        playPauseButton = new AnimatedMenuButton(soundButton.getWidth() + 2 * xMargin,frameH - yMargin,MenuButton.PlayPauseButtonTextureRegion,getVertexBufferObjectManager())
+        {
+            @Override
+            public boolean onAreaTouched(TouchEvent pSceneTouchEvent, float pTouchAreaLocalX, float pTouchAreaLocalY) {
+                if (pSceneTouchEvent.isActionDown()) {
+                    gamePaused = !gamePaused;
+                    playPauseButton.setCurrentTileIndex(gamePaused ? 0 : 1);
+                    if (gamePaused)
+                        SndMusic.pause();
+                    else if (isSoundOn)
+                        SndMusic.play();
+
+                    return true;
+                }
+                else
+                    return false;
+            }
+        };
+        playPauseButton.setSize(w,h);
+        playPauseButton.setCurrentTileIndex(1);
+        mScene.attachChild(playPauseButton);
+        mScene.registerTouchArea(playPauseButton);
     }
     private void createGotoMenuButton() {
-        //TODO: createGotoMenuButton
+        int frameH = CAMERA_HEIGHT;
+        int frameW = CAMERA_WIDTH;
+        double ratio = 1;
+        int h = frameH / 16;
+        int w = (int) (h * ratio);
+        gotoMenuButton = new MenuButton(frameW - xMargin - w, frameH - yMargin, MenuButton.GotoMenuButtonTextureRegion, getVertexBufferObjectManager())
+        {
+            @Override
+            public boolean onAreaTouched(TouchEvent pSceneTouchEvent, float pTouchAreaLocalX, float pTouchAreaLocalY) {
+                if (pSceneTouchEvent.isActionDown()) {
+                    gamePaused=true;
+                    //show confirmation message to user
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            new AlertDialog.Builder(MainActivity.Instance)
+                                    .setTitle("End Game")
+                                    .setMessage("Are you leaving?")
+                                    .setCancelable(false)
+                                    .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
+                                        public void onClick(DialogInterface dialog, int which) {
+                                            gameOver();
+                                        }
+                                    })
+                                    .setNegativeButton(android.R.string.no, new DialogInterface.OnClickListener() {
+                                        public void onClick(DialogInterface dialog, int which) {
+                                            gamePaused = false;
+                                            if (isSoundOn)
+                                                createBackgroundMusic();
+                                        }
+                                    })
+                                    .setIcon(android.R.drawable.ic_dialog_alert)
+                                    .show();
+                        }
+                    });
+                    return true;
+                }
+                else
+                    return false;
+            }
+        };
+        gotoMenuButton.setSize(w, h);
+        mScene.attachChild(gotoMenuButton);
+        mScene.registerTouchArea(gotoMenuButton);
     }
 
     private void createBackgroundMusic(){
-        //TODO: Create Background Music
+        SndEndMusic.stop();
+        SndMusic.stop();
+        //SndMusic.release();
+        SndMusic.setLooping(true);
+        SndMusic.setLoopCount(-1);
+        SndMusic.play();
     }
 
     private void createBackgroundEndMusic(){
-        //TODO: Create Background End Music
+        SndMusic.stop();
+        SndEndMusic.play();
     }
 
     private void SendHighScoreToServerAlert() {
@@ -932,7 +1131,6 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
                                 UserName = input.getText().toString();
                                 System.out.printf("Username selected: %s%n", UserName);
                                 SendHighScoreToServer();
-                                gotoMenu();
                             }
                         })
                         .setNegativeButton(android.R.string.no, new DialogInterface.OnClickListener() {
@@ -1028,44 +1226,42 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
     }
 
     private void postToSocial() {
-        /*
-        Bitmap bmp = screenShot();
-        ByteArrayOutputStream stream = new ByteArrayOutputStream();
-        bmp.compress(Bitmap.CompressFormat.JPEG, 90, stream);
-        byte[] bmpByteArray = stream.toByteArray();
-
-        File f = new File(Environment.getExternalStorageDirectory() + File.separator + "temporary_file.jpg");
-        try {
-            f.createNewFile();
-            FileOutputStream fo = new FileOutputStream(f);
-            fo.write(bmpByteArray);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        */
         final String filePath = Environment.getExternalStorageDirectory() + File.separator + "temporary_file.jpg";
         Debug.d(String.format("Screen Capturing at %s", filePath));
-        ScreenCapture screenCapture = new ScreenCapture();
+        final ScreenCapture screenCapture = new ScreenCapture();
+        mScene.attachChild(screenCapture);
         screenCapture.capture(CAMERA_WIDTH, CAMERA_HEIGHT, filePath, new ScreenCapture.IScreenCaptureCallback() {
             @Override
-            public void onScreenCaptured(String pFilePath) {
+            public void onScreenCaptured(final String pFilePath) {
                 Debug.d(String.format("Screen Captured at %s, Intending Share.", pFilePath));
-                Intent share = new Intent(Intent.ACTION_SEND);
-                share.setType("image/jpeg"); // might be text, sound, whatever
-                //share.putExtra(Intent.EXTRA_STREAM, Uri.parse("file:///sdcard/temporary_file.jpg"));
-                share.putExtra(Intent.EXTRA_STREAM, Uri.parse(pFilePath));
-                share.putExtra(Intent.EXTRA_TEXT, String.format("Hey, I completed #%s with score %d %s", Constants.GameName, score, Constants.WebSite));
-                //share.putExtra(Intent.EXTRA_TEXT, Constants.WebSite);
-                //share.putExtra(Intent.EXTRA_HTML_TEXT, String.format("<a href='%s'>%s</a>", Constants.WebSite, Constants.WebSite));
-                startActivity(Intent.createChooser(share, "Share Your Score"));
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        Intent share = new Intent(Intent.ACTION_SEND);
+                        share.setType("image/jpeg"); // might be text, sound, whatever
+                        share.putExtra(Intent.EXTRA_STREAM, Uri.parse(pFilePath));
+                        share.putExtra(Intent.EXTRA_TEXT, String.format("Hey, I completed #%s with score %d %s", Constants.GameName, score, Constants.WebSite));
+                        startActivity(Intent.createChooser(share, "Share Your Score"));
+                        gotoMenu();
+                        mScene.detachChild(screenCapture);
+                    }
+                });
             }
 
             @Override
             public void onScreenCaptureFailed(String pFilePath, Exception pException) {
                 Debug.d("Screen Capture Failed, ");
                 pException.printStackTrace();
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        gotoMenu();
+                        mScene.detachChild(screenCapture);
+                    }
+                });
             }
         });
+
     }
 
     private void doExit() {
@@ -1101,16 +1297,72 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
     }
 
     private void gotoHowToPlay() {
-
+        removeMenu();
+        InfoScreen = new AnimatedSprite(0,0,CAMERA_WIDTH,CAMERA_HEIGHT,infoTextureRegion,getVertexBufferObjectManager())
+        {
+            @Override
+            public boolean onAreaTouched(TouchEvent pSceneTouchEvent, float pTouchAreaLocalX, float pTouchAreaLocalY) {
+                if (pSceneTouchEvent.isActionDown()) {
+                    if (infoSlideCurrent==infoSlideMax) {
+                        mScene.unregisterTouchArea(InfoScreen);
+                        mScene.detachChild(InfoScreen);
+                        InfoScreen.dispose();
+                        InfoScreen = null;
+                        createMenu();
+                    }
+                    else {
+                        infoSlideCurrent++;
+                        InfoScreen.setCurrentTileIndex(infoSlideCurrent - 4);
+                    }
+                    return true;
+                }
+                else
+                    return false;
+            }
+        };
+        mScene.registerTouchArea(InfoScreen);
+        mScene.attachChild(InfoScreen);
+        infoSlideCurrent = 4;
     }
 
-    /*
-    private Bitmap screenShot() {
-        Bitmap b = Bitmap.createBitmap( getWidth(), getHeight(), Bitmap.Config.RGB_565);
-        Canvas c = new Canvas(b);
-        ScreenCapture s = new ScreenCapture();
-        s.capture(CAMERA_WIDTH,CAMERA_HEIGHT,);
-        return b;
+    private ContactListener createContactListener()
+    {
+        ContactListener contactListener = new ContactListener()
+        {
+            @Override
+            public void beginContact(Contact contact)
+            {
+                final Fixture x1 = contact.getFixtureA();
+                final Fixture x2 = contact.getFixtureB();
+
+                if (!onMenu) {
+                    if (x1.getUserData() != 1 || x2.getUserData() != 1) {
+                        SndDrop.play();
+                    }
+                }
+
+                x1.setUserData(1);
+                x2.setUserData(1);
+            }
+
+            @Override
+            public void endContact(Contact contact)
+            {
+
+            }
+
+            @Override
+            public void preSolve(Contact contact, Manifold oldManifold)
+            {
+
+            }
+
+            @Override
+            public void postSolve(Contact contact, ContactImpulse impulse)
+            {
+
+            }
+        };
+        return contactListener;
     }
-    */
 }

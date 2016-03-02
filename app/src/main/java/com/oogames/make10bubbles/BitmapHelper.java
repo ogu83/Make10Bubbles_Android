@@ -21,7 +21,7 @@ public class BitmapHelper {
             height = c.getHeight();
         }
 
-        cs = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+        cs = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_4444);
 
         Canvas comboImage = new Canvas(cs);
 
