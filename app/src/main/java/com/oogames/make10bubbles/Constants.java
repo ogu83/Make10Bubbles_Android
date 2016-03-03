@@ -10,5 +10,5 @@ public class Constants {
     public static final String AppId = "1086790577";
     public static final String ApiAddress = "http://make10bubbles.ozoggames.com/api";
 
-    public static final String GoogleAppLink = "https://play.google.com/store/apps/details?id=oogames.com.make10bubbles";
+    public static final String GoogleAppLink = "https://play.google.com/store/apps/details?id=com.oogames.make10bubbles";
 }

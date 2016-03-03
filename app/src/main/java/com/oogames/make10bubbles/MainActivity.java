@@ -538,7 +538,7 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
 
     private void addNumber() {
         final NumberBubble bubble;
-        final FixtureDef objectFixtureDef = PhysicsFactory.createFixtureDef(2, 0.15f, 0.15f);
+        final FixtureDef objectFixtureDef = PhysicsFactory.createFixtureDef(2, 0.25f, 0.15f);
         final Body body;
 
         float frameW = CAMERA_WIDTH;
@@ -552,11 +552,12 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
             no = random.nextInt(5)+5;
 
         float pX = xMargin+random.nextInt((int)(frameW-2*xMargin-nW));
-        float pY = yMargin+5;
+        float pY = 2*yMargin;
 
         bubble = new NumberBubble(pX, pY, NumberBubble.nTTextureRegions.get(no-1), getVertexBufferObjectManager(), no, nW);
         body = PhysicsFactory.createCircleBody(this.mPhysicsWorld, bubble, BodyDef.BodyType.DynamicBody, objectFixtureDef);
         body.setFixedRotation(true);
+        body.setUserData(0);
         bubble.Body = body;
         Bubbles.add(bubble);
 
@@ -1336,8 +1337,10 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
                 final Fixture x2 = contact.getFixtureB();
 
                 if (!onMenu) {
-                    if (x1.getUserData() != 1 || x2.getUserData() != 1) {
-                        SndDrop.play();
+                    if (x1.getUserData() != null && x2.getUserData() != null){
+                        if ((int) x1.getUserData() != 1 || (int) x2.getUserData() != 1) {
+                            SndDrop.play();
+                        }
                     }
                 }
 
