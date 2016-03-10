@@ -16,6 +16,9 @@ public class MenuButton extends Sprite  {
     public static TextureRegion ReviewButtonTextureRegion;
     public static TextureRegion ExitButtonTextureRegion;
 
+    public static TextureRegion TwitterButtonTextureRegion;
+    public static TextureRegion FacebookButtonTextureRegion;
+
     public static TiledTextureRegion SoundButtonTextureRegion;
     public static TiledTextureRegion PlayPauseButtonTextureRegion;
     public static TextureRegion GotoMenuButtonTextureRegion;
