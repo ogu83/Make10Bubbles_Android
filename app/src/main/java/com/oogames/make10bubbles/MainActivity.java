@@ -1,7 +1,9 @@
 package com.oogames.make10bubbles;
 
 import android.app.Activity;
+import android.app.AlarmManager;
 import android.app.AlertDialog;
+import android.app.PendingIntent;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.res.Resources;
@@ -13,6 +15,7 @@ import android.hardware.SensorManager;
 import android.media.AudioManager;
 import android.media.SoundPool;
 import android.net.Uri;
+import android.os.Bundle;
 import android.os.Environment;
 import android.os.StrictMode;
 import android.provider.CalendarContract;
@@ -100,6 +103,7 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -372,6 +376,22 @@ public class MainActivity extends SimpleBaseGameActivity implements IAcceleratio
             mBitmapTextureAtlas.load();
             NumberBubble.nTTextureRegions.add(ttr);
         }
+    }
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        //setContentView(R.layout.activity_main);
+        AlarmManager alarmManager = (AlarmManager) getSystemService(this.ALARM_SERVICE);
+
+        Intent notificationIntent = new Intent("android.media.action.DISPLAY_NOTIFICATION");
+        notificationIntent.addCategory("android.intent.category.DEFAULT");
+
+        PendingIntent broadcast = PendingIntent.getBroadcast(this, 100, notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+
+        Calendar cal = Calendar.getInstance();
+        cal.add(Calendar.SECOND, 15);
+        alarmManager.set(AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(), broadcast);
     }
 
     @Override
