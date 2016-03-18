@@ -1,4 +1,4 @@
-# Make10Bubbles_IOS
+# Make10Bubbles_Android
 
 Another kind of make 10 game with falling bubbles, action and physics included. It is quite addictive. Push your brain, coordination and endurance to the limits.
 
